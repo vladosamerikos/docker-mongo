@@ -5,11 +5,16 @@ and users, manage backups and open a database shell.
 
 ## Start
 
-Requires Bash, Python 3.9+, OpenSSL, Docker and Docker Compose. Git is needed when cloning.
+From a cloned repository:
 
 ```sh
 ./setup.sh
-# Install from GitHub after publishing the repository:
+```
+
+Or install into `mongo<VERSION>` in the current directory:
+Requires Bash, Python 3.9+, OpenSSL, Docker and Docker Compose. Git is needed when cloning.
+
+```sh
 curl -fsSL https://raw.githubusercontent.com/vladosamerikos/docker-mongo/main/setup.sh | bash
 ```
 
