@@ -40,7 +40,13 @@ Set `MONGO_PORT_MODE` in `.env`:
 Setup applies network changes automatically. When editing `.env` manually, run
 `docker compose down` **before** changing the mode, then `docker compose up -d`.
 Set `MONGO_LAN_HOST` to the server's LAN IP/hostname for LAN connection strings.
-`MONGO_NETWORK_NAME` selects the Docker network; new installations use `<project>_network`.
+Setup asks for a Docker network name, defaulting to `mongo<VERSION>_network`
+(or the configured network when rerun). It creates missing networks and reuses
+existing ones. Networks belonging to another project are marked external and
+are not removed by Compose. Their existing settings are preserved.
+For manual configuration, set `MONGO_NETWORK_NAME` and `MONGO_NETWORK_EXTERNAL=true`
+to reuse a network. External ownership and network isolation (`internal`) are
+separate [Compose settings](https://docs.docker.com/reference/compose-file/networks/).
 
 ## Databases and users
 

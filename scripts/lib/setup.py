@@ -19,6 +19,7 @@ DEFAULTS = {
     'MONGO_VERSION': '6', 'MONGO_HOSTNAME': 'mongo6', 'HOST_MONGO_PORT': '27006',
     'MONGO_PORT_MODE': 'host', 'STORE_CREDENTIALS': 'false', 'MONGO_LAN_HOST': '',
     'MONGO_NETWORK_NAME': 'mongo_network',
+    'MONGO_NETWORK_EXTERNAL': 'false',
     'MONGO_INITDB_ROOT_USERNAME': 'root', 'MONGO_INITDB_ROOT_PASSWORD': '',
     'CONTAINER_NAME': 'mongo6', 'COMPOSE_PROJECT_NAME': 'mongo6',
     'MONGO_LIMIT_CPUS': '2', 'MONGO_LIMIT_MEMORY': '4G',
@@ -254,6 +255,29 @@ class Installer:
                 raise ToolError(f'Port {value} is unavailable on {address}. Choose another port.')
         return str(int(value))
 
+    def network(self, value):
+        if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*', value) or value in ('bridge', 'host', 'none'):
+            raise ToolError('Enter a custom Docker network name using letters, digits, dots, underscores or hyphens.')
+        probe = self.run('docker', 'network', 'inspect', value, check=False)
+        external = False
+        if probe.returncode:
+            if not re.search(r'\b(?:No such network|network .+ not found)\b', probe.stderr, re.IGNORECASE):
+                raise ToolError('Cannot inspect Docker networks. Check Docker access and retry.')
+            message(f'Network {value} will be created by Compose.')
+        else:
+            existing = json.loads(probe.stdout)[0]
+            if existing['Name'] != value:
+                raise ToolError('Use the network name, not its ID.')
+            if existing.get('Driver') in ('host', 'null') or (
+                    existing.get('Scope') == 'swarm' and not existing.get('Attachable')):
+                raise ToolError('This network does not support attaching a Compose container. Choose another network.')
+            labels = existing.get('Labels') or {}
+            external = not (labels.get('com.docker.compose.project') == self.values['COMPOSE_PROJECT_NAME'] and
+                            labels.get('com.docker.compose.network') == 'mongo-net')
+            message(f'Using existing network {value} ({"external" if external else "managed by this Compose project"}).')
+        self.values['MONGO_NETWORK_EXTERNAL'] = str(external).lower()
+        return value
+
     def configure(self):
         has_data = (self.root / 'data').exists() and any((self.root / 'data').iterdir())
         if has_data and not self.loaded and not self.state:
@@ -268,7 +292,7 @@ class Installer:
             for key in ('CONTAINER_NAME', 'COMPOSE_PROJECT_NAME', 'MONGO_HOSTNAME'):
                 self.values[key] = f'mongo{version}'
             self.values['HOST_MONGO_PORT'] = f'2700{version}'
-        major_version(self.values['MONGO_VERSION'])
+        major = major_version(self.values['MONGO_VERSION'])
         if self.state and self.state['version'] != self.values['MONGO_VERSION']:
             raise ToolError(f"This installation is pinned to MongoDB {self.state['version']}. Version migration is not supported.")
         self.inspect(check_name=False)
@@ -305,7 +329,6 @@ class Installer:
         if initial:
             self.values['CONTAINER_NAME'] = self.values['MONGO_HOSTNAME']
             self.values['COMPOSE_PROJECT_NAME'] = re.sub(r'[^a-z0-9_-]', '-', self.values['MONGO_HOSTNAME'].lower())
-            self.values['MONGO_NETWORK_NAME'] = self.values['COMPOSE_PROJECT_NAME'] + '_network'
         self.inspect()
         def mode(value):
             value = {'127': 'host', '127.0.0.1': 'host', '000': 'lan', '0.0.0.0': 'lan'}.get(value, value)
@@ -318,6 +341,8 @@ class Installer:
         if self.values['MONGO_PORT_MODE'] == 'lan':
             self.values['MONGO_LAN_HOST'] = ask('LAN IP/hostname for connection strings (optional)', self.values['MONGO_LAN_HOST'],
                                                 lambda value: hostname(value) if value else '')
+        self.values['MONGO_NETWORK_NAME'] = ask('Docker network name',
+            self.loaded.get('MONGO_NETWORK_NAME') or f'mongo{major}_network', self.network)
         self.values['STORE_CREDENTIALS'] = ask('Store generated user credentials in .credentials? true / false',
                                                self.values['STORE_CREDENTIALS'], lambda value: str(boolean(value)).lower())
         available_cpus = self.run('docker', 'info', '--format', '{{.NCPU}}', check=False).stdout.strip()

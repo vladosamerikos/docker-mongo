@@ -49,3 +49,4 @@ services:
 networks:
   mongo-net:
     name: ${MONGO_NETWORK_NAME:-mongo_network}
+    external: ${MONGO_NETWORK_EXTERNAL:-false}
