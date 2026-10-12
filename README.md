@@ -20,9 +20,16 @@ curl -fsSL https://raw.githubusercontent.com/vladosamerikos/docker-mongo/main/se
 
 Setup selects MongoDB 3–9, generates the administrator password, configures networking
 and CPU/RAM limits, and starts the container. Enter accepts each default.
-Running it again reconfigures the existing installation, preserving its version,
-credentials and `data/`. Version upgrades require a separate database migration.
+Running it again reconfigures the existing installation, preserving the configured
+image tag, credentials and `data/`. Changing the major version requires a separate migration.
 The administrator password is saved in `.env` with permissions `600`.
+
+Selecting `8` uses the moving tag `mongo:8`, which follows the latest published
+release in major 8, including minor and patch updates. Compose checks for an updated
+image on each `docker compose up -d`; setup downloads it before recreating the
+container. Running containers do not update until redeployed. Set a full tag in
+`MONGO_VERSION` before the first setup to pin a release instead.
+The [official MongoDB image](https://hub.docker.com/_/mongo) has no Alpine variant.
 
 To configure manually, copy `.env.example` to `.env`, set
 `MONGO_INITDB_ROOT_PASSWORD`, then run `docker compose up -d`.

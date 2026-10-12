@@ -1,5 +1,6 @@
 x-mongo: &mongo
   image: mongo:${MONGO_VERSION}
+  pull_policy: always
   restart: always
   container_name: ${CONTAINER_NAME}
   env_file:

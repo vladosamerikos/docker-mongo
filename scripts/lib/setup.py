@@ -287,8 +287,7 @@ class Installer:
         initial = not self.loaded and not self.state
         if initial:
             version = major_choice(os.environ.get('MONGO_SETUP_VERSION') or ask('MongoDB major version (3-9)', '6', major_choice))
-            # The bootstrap only supplies a major version. Pin the Linux tag for 9.
-            self.values['MONGO_VERSION'] = '9.0-noble' if version == '9' else version
+            self.values['MONGO_VERSION'] = version
             for key in ('CONTAINER_NAME', 'COMPOSE_PROJECT_NAME', 'MONGO_HOSTNAME'):
                 self.values[key] = f'mongo{version}'
             self.values['HOST_MONGO_PORT'] = f'2700{version}'
@@ -402,7 +401,8 @@ class Installer:
                 self.run('docker', 'stop', '--time', '30', old['Id'])
                 self.run('docker', 'rm', old['Id'])
             message('Starting MongoDB...')
-            self.compose('up', '-d', '--force-recreate', desired_service)
+            # The image was already pulled before stopping the existing container.
+            self.compose('up', '-d', '--force-recreate', '--pull', 'never', desired_service)
             self.wait_ready()
         except (ToolError, OSError, ValueError, KeyboardInterrupt) as error:
             if old:
