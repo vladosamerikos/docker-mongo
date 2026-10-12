@@ -1,0 +1,9 @@
+.env
+.credentials
+.setup-state.json
+.setup.lock
+data/
+backups/
+__pycache__/
+test/artifacts/
+test
